@@ -18,6 +18,13 @@ class CostmapCore {
   private:
     rclcpp::Logger logger_;
 
+    // map settings
+    double resolution_ = 0.1;
+    int width_ = 100;
+    int height_ = 100;
+    double origin_x_ = -5.0;
+    double origin_y_ = -5.0;
+
 };
 
 }  
