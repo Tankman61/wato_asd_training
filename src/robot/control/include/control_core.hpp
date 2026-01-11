@@ -19,7 +19,7 @@ class ControlCore {
     geometry_msgs::msg::Twist computeVelocity(const geometry_msgs::msg::PoseStamped &target);
     double computeDistance(const geometry_msgs::msg::Point &a, const geometry_msgs::msg::Point &b);
     double extractYaw(const geometry_msgs::msg::Quaternion &quat);
-    
+
   private:
     rclcpp::Logger logger_;
 

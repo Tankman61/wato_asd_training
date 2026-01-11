@@ -21,7 +21,6 @@ void controlLoop() {
     if (!current_path_ || !robot_odom_) {
       return;
     }
- 
     // Find the lookahead point
     auto lookahead_point = findLookaheadPoint();
     if (!lookahead_point) {
@@ -30,9 +29,24 @@ void controlLoop() {
  
     // Compute velocity command
     auto cmd_vel = computeVelocity(*lookahead_point);
- 
+    
+    // Stop within goal tolerance
+    if(computeDistance(robot_odom_->pose.pose.position, current_path_->poses.back().pose.position) < goal_tolerance_){
+      stopRobot();
+      RCLCPP_INFO(this->get_logger(), "Goal reached, robot stopped.");
+      return;
+    }
+
     // Publish the velocity command
     cmd_vel_pub_->publish(cmd_vel);
+}
+
+
+void stopRobot() {
+    geometry_msgs::msg::Twist cmd_vel;
+    cmd_vel.linear.x = 0.0;
+    cmd_vel.angular.z = 0.0;
+    return cmd_vel_pub_->publish(cmd_vel);
 }
 
 int main(int argc, char ** argv)

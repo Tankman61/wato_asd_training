@@ -23,13 +23,8 @@ std::optional<geometry_msgs::msg::PoseStamped> findLookaheadPoint() {
       lookaheadPoint = point;
       break;
     }
-
-    // TODO: edge case - account for robot is close to final goal
-
-
   }
 
-  RCLCPP_DEBUG(this->get_logger(), "Ran findLookaheadPoint()");
   return lookaheadPoint;
 }
 
@@ -51,10 +46,9 @@ geometry_msgs::msg::Twist computeVelocity(const geometry_msgs::msg::PoseStamped 
   // curvature = 2sin(steering angle)/distance
 
   cmd_vel.angular.z = 2 * std::sin(steeringAngle)/computeDistance(currPoint, targetPoint);
-
   return cmd_vel;
 }
- 
+
 double computeDistance(const geometry_msgs::msg::Point &a, const geometry_msgs::msg::Point &b) {
   return std::sqrt((a.x-b.x) * (a.x-b.x) + (a.y-b.y) * (a.y-b.y));
 }

@@ -10,7 +10,6 @@
 class ControlNode : public rclcpp::Node {
   public:
     ControlNode();
-    void controlLoop();
 
   private:
     robot::ControlCore control_;
@@ -20,6 +19,13 @@ class ControlNode : public rclcpp::Node {
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
     rclcpp::TimerBase::SharedPtr control_timer_;
     
+    double lookahead_distance_;
+    double goal_tolerance_;
+    double linear_speed_;
+
+    void controlLoop();
+    void stopRobot();
+
 };
 
 #endif
