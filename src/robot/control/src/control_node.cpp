@@ -2,9 +2,9 @@
 
 ControlNode::ControlNode(): Node("control"), control_(robot::ControlCore(this->get_logger())) {
   // Initialize parameters
-  lookahead_distance_ = 1.0;  // Lookahead distance
+
   goal_tolerance_ = 0.1;     // Distance to consider the goal reached
-  linear_speed_ = 0.5;       // Constant forward speed
+  
 
   path_sub_ = this->create_subscription<nav_msgs::msg::Path>(
     "/path", 10, [this](const nav_msgs::msg::Path::SharedPtr msg) { current_path_ = msg; });
@@ -16,22 +16,21 @@ ControlNode::ControlNode(): Node("control"), control_(robot::ControlCore(this->g
     std::chrono::milliseconds(100), [this]() { controlLoop(); });
 }
 
-void controlLoop() {
+void ControlNode::controlLoop() {
   // Skip control if no path or odometry data is available
     if (!current_path_ || !robot_odom_) {
       return;
     }
     // Find the lookahead point
-    auto lookahead_point = findLookaheadPoint();
+    auto lookahead_point = control_.findLookaheadPoint(current_path_, robot_odom_);
     if (!lookahead_point) {
         return;  // No valid lookahead point found
     }
- 
     // Compute velocity command
-    auto cmd_vel = computeVelocity(*lookahead_point);
+    auto cmd_vel = control_.computeVelocity(robot_odom_,*lookahead_point);
     
     // Stop within goal tolerance
-    if(computeDistance(robot_odom_->pose.pose.position, current_path_->poses.back().pose.position) < goal_tolerance_){
+    if(control_.computeDistance(robot_odom_->pose.pose.position, current_path_->poses.back().pose.position) < goal_tolerance_){
       stopRobot();
       RCLCPP_INFO(this->get_logger(), "Goal reached, robot stopped.");
       return;
@@ -42,7 +41,7 @@ void controlLoop() {
 }
 
 
-void stopRobot() {
+void ControlNode::stopRobot() {
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = 0.0;
     cmd_vel.angular.z = 0.0;
