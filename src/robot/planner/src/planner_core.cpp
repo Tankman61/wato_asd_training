@@ -15,9 +15,9 @@ namespace robot {
 
 PlannerCore::PlannerCore(const rclcpp::Logger& logger) : logger_(logger) {}
 
-nav_msgs::msg::Path PlannerCore::planPath(const nav_msgs::msg::OccupancyGrid &map, 
-                                          const nav_msgs::msg::Odometry &start_odom, 
-                                          const geometry_msgs::msg::PointStamped &goal_point) {
+nav_msgs::msg::Path PlannerCore::planPath(const nav_msgs::msg::Odometry &start_odom, 
+                                          const geometry_msgs::msg::PointStamped &goal_point,
+                                          const nav_msgs::msg::OccupancyGrid &map) {
     nav_msgs::msg::Path path;
     path.header.stamp = start_odom.header.stamp;
     path.header.frame_id = map.header.frame_id;
