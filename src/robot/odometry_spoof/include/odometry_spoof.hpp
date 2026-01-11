@@ -17,7 +17,9 @@ class OdometrySpoofNode : public rclcpp::Node {
 
   private:
     void timerCallback();
-
+    void odometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    
     // Odom Publisher
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
 
