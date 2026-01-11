@@ -5,6 +5,9 @@ FROM ${BASE_IMAGE} AS source
 
 WORKDIR ${AMENT_WS}/src
 
+# Force Rebuild to pick up local changes
+RUN echo "Force Rebuild 8"
+
 # Copy in source code 
 COPY src/robot/odometry_spoof odometry_spoof
 COPY src/robot/costmap costmap
