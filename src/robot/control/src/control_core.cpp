@@ -28,7 +28,12 @@ std::optional<geometry_msgs::msg::PoseStamped> ControlCore::findLookaheadPoint(c
   // assume current_path_ && robot_odom_
   
   auto &currPoint = robot_odom_->pose.pose.position;
-  std::optional<geometry_msgs::msg::PoseStamped> lookaheadPoint = std::nullopt; // edge case - account for path is empty
+  
+  if (current_path_->poses.empty()) {
+      return std::nullopt;
+  }
+
+  std::optional<geometry_msgs::msg::PoseStamped> lookaheadPoint = std::nullopt;
 
   for(auto &curr : current_path_->poses){
     auto &point = curr.pose.position;
@@ -37,6 +42,11 @@ std::optional<geometry_msgs::msg::PoseStamped> ControlCore::findLookaheadPoint(c
       lookaheadPoint = curr;
       break;
     }
+  }
+
+  // If we didn't find a point far enough away, use the last point (goal)
+  if (!lookaheadPoint) {
+      lookaheadPoint = current_path_->poses.back();
   }
 
   return lookaheadPoint;
@@ -50,17 +60,23 @@ geometry_msgs::msg::Twist ControlCore::computeVelocity(const nav_msgs::msg::Odom
   auto &currPoint = robot_odom_->pose.pose.position;
   auto &targetPoint = target.pose.position;
   // angle between curr point and target point = tan^{-1}(dy / dx)
-  double targetAngle = atan((currPoint.y - targetPoint.y) / (currPoint.x - targetPoint.x));
+  double targetAngle = atan2(targetPoint.y - currPoint.y, targetPoint.x - currPoint.x);
   double yaw = extractYaw(robot_odom_->pose.pose.orientation);
   double steeringAngle = targetAngle - yaw;
+
+  // Normalize angle to [-pi, pi]
+  while (steeringAngle > M_PI) steeringAngle -= 2.0 * M_PI;
+  while (steeringAngle < -M_PI) steeringAngle += 2.0 * M_PI;
 
   geometry_msgs::msg::Twist cmd_vel;
   cmd_vel.linear.x = linear_speed_;
 
-  // --- Calculate angle velocity and store as Twist --- 
+  // --- Calculate angle velocity and store as Twist ---
   // curvature = 2sin(steering angle)/distance
+  double distance = computeDistance(currPoint, targetPoint);
+  distance = std::max(distance, 0.5);  // Prevent division by tiny values
 
-  cmd_vel.angular.z = 2 * std::sin(steeringAngle)/computeDistance(currPoint, targetPoint);
+  cmd_vel.angular.z = 2 * std::sin(steeringAngle) / distance;
   return cmd_vel;
 }
 

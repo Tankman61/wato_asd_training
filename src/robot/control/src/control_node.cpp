@@ -3,7 +3,7 @@
 ControlNode::ControlNode(): Node("control"), control_(robot::ControlCore(this->get_logger())) {
   // Initialize parameters
 
-  goal_tolerance_ = 0.1;     // Distance to consider the goal reached
+  goal_tolerance_ = 0.2;     // Distance to consider the goal reached
   
 
   path_sub_ = this->create_subscription<nav_msgs::msg::Path>(
@@ -21,9 +21,16 @@ void ControlNode::controlLoop() {
     if (!current_path_ || !robot_odom_) {
       return;
     }
+
+    if (current_path_->poses.empty()) {
+        stopRobot();
+        return;
+    }
+
     // Find the lookahead point
     auto lookahead_point = control_.findLookaheadPoint(current_path_, robot_odom_);
     if (!lookahead_point) {
+        stopRobot();
         return;  // No valid lookahead point found
     }
     // Compute velocity command

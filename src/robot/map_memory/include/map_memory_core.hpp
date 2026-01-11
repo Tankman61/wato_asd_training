@@ -21,6 +21,11 @@ class MapMemoryCore {
     nav_msgs::msg::Odometry::SharedPtr latest_odom_;
     nav_msgs::msg::OccupancyGrid::SharedPtr global_map_;
     double getYawFromQuaternion(const geometry_msgs::msg::Quaternion& quat);
+
+    // Track last update position
+    double last_update_x_ = 0.0;
+    double last_update_y_ = 0.0;
+    bool first_update_ = true;
 };
 
 }

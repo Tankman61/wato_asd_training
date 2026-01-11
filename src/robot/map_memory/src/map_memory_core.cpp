@@ -34,7 +34,7 @@ void MapMemoryCore::storeCostmap(const nav_msgs::msg::OccupancyGrid::SharedPtr m
   
   if (!global_map_) {
     global_map_ = std::make_shared<nav_msgs::msg::OccupancyGrid>();
-    global_map_->header.frame_id = "odom";
+    global_map_->header.frame_id = "odom"; 
     global_map_->info.resolution = msg->info.resolution;
     global_map_->info.width = 1000;
     global_map_->info.height = 1000;
@@ -47,6 +47,20 @@ void MapMemoryCore::storeCostmap(const nav_msgs::msg::OccupancyGrid::SharedPtr m
   
   double robot_x = latest_odom_->pose.pose.position.x;
   double robot_y = latest_odom_->pose.pose.position.y;
+  
+  // Check if we moved enough to update the map (1.5m threshold)
+  if (!first_update_) {
+      double dist = std::hypot(robot_x - last_update_x_, robot_y - last_update_y_);
+      if (dist < 1.5) {
+          return;
+      }
+  }
+
+  // Update last position
+  last_update_x_ = robot_x;
+  last_update_y_ = robot_y;
+  first_update_ = false;
+
   double yaw = getYawFromQuaternion(latest_odom_->pose.pose.orientation);
   
   for (size_t i = 0; i < msg->info.width; i++) {

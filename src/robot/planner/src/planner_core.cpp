@@ -2,6 +2,7 @@
 #include <cmath>
 #include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 
 // Helper to hash CellIndex for unordered_map
 struct CellIndexHash {
@@ -26,29 +27,56 @@ nav_msgs::msg::Path PlannerCore::planPath(const nav_msgs::msg::Odometry &start_o
     CellIndex start_idx = worldToGrid(start_odom.pose.pose.position.x, start_odom.pose.pose.position.y, map);
     CellIndex goal_idx = worldToGrid(goal_point.point.x, goal_point.point.y, map);
 
+    RCLCPP_INFO(logger_, "Robot at world (%.2f, %.2f) -> grid (%d, %d)",
+                start_odom.pose.pose.position.x, start_odom.pose.pose.position.y, start_idx.x, start_idx.y);
+    RCLCPP_INFO(logger_, "Goal at world (%.2f, %.2f) -> grid (%d, %d)",
+                goal_point.point.x, goal_point.point.y, goal_idx.x, goal_idx.y);
+    RCLCPP_INFO(logger_, "Map: origin=(%.2f, %.2f), size=%dx%d, res=%.2f",
+                map.info.origin.position.x, map.info.origin.position.y,
+                map.info.width, map.info.height, map.info.resolution);
+
     // Validate
-    if (!isValid(start_idx.x, start_idx.y, map) || !isValid(goal_idx.x, goal_idx.y, map)) {
-        RCLCPP_WARN(logger_, "Start or Goal is out of bounds/occupied!");
+    // Check bounds for start (ignore collision to allow planning out of obstacles)
+    if (start_idx.x < 0 || start_idx.x >= static_cast<int>(map.info.width) || 
+        start_idx.y < 0 || start_idx.y >= static_cast<int>(map.info.height)) {
+        RCLCPP_WARN(logger_, "Start is out of map bounds!");
         return path;
     }
 
+    // Check bounds AND collision for goal
+    // We relax the collision check for the goal too, so we can plan INTO a "warning zone"
+    if (goal_idx.x < 0 || goal_idx.x >= static_cast<int>(map.info.width) || 
+        goal_idx.y < 0 || goal_idx.y >= static_cast<int>(map.info.height)) {
+        RCLCPP_WARN(logger_, "Goal is out of bounds!");
+        return path;
+    }
+    
     // 2. Setup A* Structures
     std::priority_queue<AStarNode, std::vector<AStarNode>, CompareF> open_set;
     std::unordered_map<CellIndex, CellIndex, CellIndexHash> came_from;
     std::unordered_map<CellIndex, double, CellIndexHash> g_score;
 
     // Initialize Start
-    open_set.push(AStarNode(start_idx, 0.0)); // f = 0 (technically h, but start is 0)
+    double h = heuristic(start_idx, goal_idx);
+    open_set.push(AStarNode(start_idx, h));
     g_score[start_idx] = 0.0;
 
-    // Neighbors (Up, Down, Left, Right)
-    const int dx[] = {0, 0, 1, -1};
-    const int dy[] = {1, -1, 0, 0};
+    // Neighbors (8-connectivity: Up, Down, Left, Right + Diagonals)
+    const int dx[] = {0, 0, 1, -1, 1, 1, -1, -1};
+    const int dy[] = {1, -1, 0, 0, 1, -1, 1, -1};
+    const double costs[] = {1.0, 1.0, 1.0, 1.0, 1.414, 1.414, 1.414, 1.414};
 
     // 3. A* Loop
+    std::unordered_set<CellIndex, CellIndexHash> closed_set; // Keep track of visited nodes
     while (!open_set.empty()) {
         AStarNode current = open_set.top();
         open_set.pop();
+
+        // If already processed, skip
+        if (closed_set.count(current.index)) {
+            continue;
+        }
+        closed_set.insert(current.index);
 
         // Check if we reached the goal
         if (current.index == goal_idx) {
@@ -64,11 +92,12 @@ nav_msgs::msg::Path PlannerCore::planPath(const nav_msgs::msg::Odometry &start_o
             // Reverse to get Start -> Goal
             std::reverse(path_poses.begin(), path_poses.end());
             path.poses = path_poses;
+            RCLCPP_INFO(logger_, "Path found with %zu poses.", path.poses.size());
             return path;
         }
 
         // Expand Neighbors
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 8; ++i) {
             CellIndex neighbor(current.index.x + dx[i], current.index.y + dy[i]);
 
             // Check if valid and not a wall
@@ -77,8 +106,7 @@ nav_msgs::msg::Path PlannerCore::planPath(const nav_msgs::msg::Odometry &start_o
             }
 
             // Calculate tentative G-Score
-            // Distance between neighbors is always 1 cell (assuming 4-connectivity)
-            double tentative_g = g_score[current.index] + 1.0; 
+            double tentative_g = g_score[current.index] + costs[i]; 
 
             // If we found a cheaper path to this neighbor
             if (g_score.find(neighbor) == g_score.end() || tentative_g < g_score[neighbor]) {
@@ -101,8 +129,8 @@ CellIndex PlannerCore::worldToGrid(double wx, double wy, const nav_msgs::msg::Oc
     double origin_y = map.info.origin.position.y;
     double res = map.info.resolution;
 
-    int gx = static_cast<int>((wx - origin_x) / res);
-    int gy = static_cast<int>((wy - origin_y) / res);
+    int gx = static_cast<int>(std::floor((wx - origin_x) / res));
+    int gy = static_cast<int>(std::floor((wy - origin_y) / res));
     return CellIndex(gx, gy);
 }
 
@@ -116,7 +144,7 @@ geometry_msgs::msg::PoseStamped PlannerCore::gridToWorld(int gx, int gy, const n
 
     pose.pose.position.x = (gx * res) + origin_x;
     pose.pose.position.y = (gy * res) + origin_y;
-    pose.pose.position.z = 0.0;
+    pose.pose.position.z = 0.5; // Raised for visibility
     pose.pose.orientation.w = 1.0; // Default orientation
     return pose;
 }
@@ -135,7 +163,7 @@ bool PlannerCore::isValid(int x, int y, const nav_msgs::msg::OccupancyGrid &map)
 
     // 2. Check Collision
     int index = y * map.info.width + x;
-    if (map.data[index] > 50) { // Arbitrary threshold (100 is occupied, 0 is free)
+    if (map.data[index] > 50) { // Standard threshold
         return false; 
     }
 

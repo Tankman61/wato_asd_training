@@ -93,4 +93,20 @@ def generate_launch_description():
     )
     ld.add_action(odometry_spoof_node)
 
+    # Static Transform: sim_world -> odom (Offset -6m to match start position)
+    tf_sim_odom = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=['-6', '0', '0', '0', '0', '0', '1', 'sim_world', 'odom']
+    )
+    ld.add_action(tf_sim_odom)
+
+    # Static Transform: odom -> robot/odom (Identity)
+    tf_odom_robot = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=['0', '0', '0', '0', '0', '0', '1', 'odom', 'robot/odom']
+    )
+    ld.add_action(tf_odom_robot)
+
     return ld
