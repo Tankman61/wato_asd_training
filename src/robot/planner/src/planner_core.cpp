@@ -101,12 +101,21 @@ nav_msgs::msg::Path PlannerCore::planPath(const nav_msgs::msg::Odometry &start_o
             CellIndex neighbor(current.index.x + dx[i], current.index.y + dy[i]);
 
             // Check if valid and not a wall
-            if (!isValid(neighbor.x, neighbor.y, map)) {
+            // Allow goal node even if "occupied" (inflated)
+            bool is_goal = (neighbor == goal_idx);
+            if (!is_goal && !isValid(neighbor.x, neighbor.y, map)) {
                 continue;
             }
 
-            // Calculate tentative G-Score
-            double tentative_g = g_score[current.index] + costs[i]; 
+            // Calculate tentative G-Score with Cost Penalty (Weighted A*)
+            int neighbor_index = neighbor.y * map.info.width + neighbor.x;
+            double cell_cost = std::max(0.0, static_cast<double>(map.data[neighbor_index]));
+            
+            // Penalize high-cost cells. 
+            // 1.0 is base movement. (cell_cost / 10.0) adds penalty (0.0 to 10.0 for max cost).
+            double travel_cost = costs[i] * (1.0 + (cell_cost / 10.0)); 
+            
+            double tentative_g = g_score[current.index] + travel_cost; 
 
             // If we found a cheaper path to this neighbor
             if (g_score.find(neighbor) == g_score.end() || tentative_g < g_score[neighbor]) {
