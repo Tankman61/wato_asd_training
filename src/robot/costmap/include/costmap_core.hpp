@@ -24,7 +24,7 @@ class CostmapCore {
     int height_ = 100;
     double origin_x_ = -5.0;
     double origin_y_ = -5.0;
-    double inflation_radius_ = 1.0;
+    double inflation_radius_ = 1.5;  // Buffer around obstacles for Pure Pursuit corner cutting
 
 };
 

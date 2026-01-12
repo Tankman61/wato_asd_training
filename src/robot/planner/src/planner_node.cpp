@@ -61,8 +61,21 @@ void PlannerNode::planPath() {
       return;
   }
 
+  RCLCPP_INFO(this->get_logger(), "Planning path - Robot at (%.2f, %.2f), Goal at (%.2f, %.2f)",
+              current_odom_.pose.pose.position.x, current_odom_.pose.pose.position.y,
+              current_goal_.point.x, current_goal_.point.y);
+  RCLCPP_INFO(this->get_logger(), "Goal frame: %s, Map frame: %s", 
+              current_goal_.header.frame_id.c_str(), current_map_.header.frame_id.c_str());
+
   // Call the A* algorithm in PlannerCore
   nav_msgs::msg::Path path = planner_.planPath(current_odom_, current_goal_, current_map_);
+  
+  RCLCPP_INFO(this->get_logger(), "Path has %zu poses", path.poses.size());
+  if (!path.poses.empty()) {
+      RCLCPP_INFO(this->get_logger(), "Path start: (%.2f, %.2f), Path end: (%.2f, %.2f)",
+                  path.poses.front().pose.position.x, path.poses.front().pose.position.y,
+                  path.poses.back().pose.position.x, path.poses.back().pose.position.y);
+  }
   
   // publish said path
   path_pub_->publish(path);

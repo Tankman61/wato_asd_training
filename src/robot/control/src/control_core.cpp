@@ -69,14 +69,22 @@ geometry_msgs::msg::Twist ControlCore::computeVelocity(const nav_msgs::msg::Odom
   while (steeringAngle < -M_PI) steeringAngle += 2.0 * M_PI;
 
   geometry_msgs::msg::Twist cmd_vel;
-  cmd_vel.linear.x = linear_speed_;
-
   // --- Calculate angle velocity and store as Twist ---
   // curvature = 2sin(steering angle)/distance
   double distance = computeDistance(currPoint, targetPoint);
   distance = std::max(distance, 0.5);  // Prevent division by tiny values
 
-  cmd_vel.angular.z = 2 * std::sin(steeringAngle) / distance;
+  double angular_z = 2.0 * linear_speed_ * std::sin(steeringAngle) / distance;
+  
+  // Cap angular velocity to prevent oscillation
+  if (angular_z > max_angular_speed_) angular_z = max_angular_speed_;
+  if (angular_z < -max_angular_speed_) angular_z = -max_angular_speed_;
+  
+  // Slow down on sharp turns (when angular velocity is high)
+  double turn_factor = 1.0 - 0.5 * std::abs(angular_z) / max_angular_speed_;
+  cmd_vel.linear.x = linear_speed_ * turn_factor;
+  cmd_vel.angular.z = angular_z;
+  
   return cmd_vel;
 }
 

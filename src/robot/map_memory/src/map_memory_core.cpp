@@ -40,7 +40,7 @@ void MapMemoryCore::storeCostmap(const nav_msgs::msg::OccupancyGrid::SharedPtr m
     global_map_->info.height = 1000;
     global_map_->info.origin.position.x = -25.0;
     global_map_->info.origin.position.y = -25.0;
-    global_map_->data.resize(1000 * 1000, -1);
+    global_map_->data.resize(1000 * 1000, 0);  // Initialize as free space
     RCLCPP_INFO(logger_, "Initialized global map: %dx%d cells", 
                 global_map_->info.width, global_map_->info.height);
   }
@@ -48,10 +48,10 @@ void MapMemoryCore::storeCostmap(const nav_msgs::msg::OccupancyGrid::SharedPtr m
   double robot_x = latest_odom_->pose.pose.position.x;
   double robot_y = latest_odom_->pose.pose.position.y;
   
-  // Check if we moved enough to update the map (1.5m threshold)
+  // Check if we moved enough to update the map (0.5m threshold)
   if (!first_update_) {
       double dist = std::hypot(robot_x - last_update_x_, robot_y - last_update_y_);
-      if (dist < 1.5) {
+      if (dist < 0.5) {
           return;
       }
   }

@@ -111,9 +111,9 @@ nav_msgs::msg::Path PlannerCore::planPath(const nav_msgs::msg::Odometry &start_o
             int neighbor_index = neighbor.y * map.info.width + neighbor.x;
             double cell_cost = std::max(0.0, static_cast<double>(map.data[neighbor_index]));
             
-            // Penalize high-cost cells. 
-            // 1.0 is base movement. (cell_cost / 10.0) adds penalty (0.0 to 10.0 for max cost).
-            double travel_cost = costs[i] * (1.0 + (cell_cost / 10.0)); 
+            // Penalize high-cost cells MUCH more heavily to push paths away from walls
+            // 1.0 is base movement. (cell_cost / 5.0) adds penalty (0.0 to 20.0 for max cost).
+            double travel_cost = costs[i] * (1.0 + (cell_cost / 5.0)); 
             
             double tentative_g = g_score[current.index] + travel_cost; 
 
@@ -151,9 +151,10 @@ geometry_msgs::msg::PoseStamped PlannerCore::gridToWorld(int gx, int gy, const n
     double origin_y = map.info.origin.position.y;
     double res = map.info.resolution;
 
-    pose.pose.position.x = (gx * res) + origin_x;
-    pose.pose.position.y = (gy * res) + origin_y;
-    pose.pose.position.z = 0.5; // Raised for visibility
+    // Add 0.5 * res to get cell center instead of cell corner
+    pose.pose.position.x = (gx + 0.5) * res + origin_x;
+    pose.pose.position.y = (gy + 0.5) * res + origin_y;
+    pose.pose.position.z = 0.0;
     pose.pose.orientation.w = 1.0; // Default orientation
     return pose;
 }
@@ -170,9 +171,10 @@ bool PlannerCore::isValid(int x, int y, const nav_msgs::msg::OccupancyGrid &map)
         return false;
     }
 
-    // 2. Check Collision
+    // 2. Check Collision - avoid inflation zones around walls
     int index = y * map.info.width + x;
-    if (map.data[index] > 50) { // Standard threshold
+    int8_t cell = map.data[index];
+    if (cell > 50) { // Only reject cells very close to actual obstacles
         return false; 
     }
 

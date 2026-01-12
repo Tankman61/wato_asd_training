@@ -25,8 +25,9 @@ class ControlCore {
   private:
     rclcpp::Logger logger_;
   
-    double lookahead_distance_ = 1.0;  // Lookahead distance
-    double linear_speed_ = 0.5;       // Constant forward speed
+    double lookahead_distance_ = 2.0;  // Moderate lookahead - balance between oscillation and corner cutting
+    double linear_speed_ = 0.4;        // Base speed
+    double max_angular_speed_ = 0.8;   // Cap angular velocity to prevent oscillation
 };
 
 } 
